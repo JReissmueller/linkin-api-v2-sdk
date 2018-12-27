@@ -1,5 +1,5 @@
 <?php
-namespace LinkedIn;
+namespace JReissmueller\LinkedIn;
 
 class LinkedIn
 {
