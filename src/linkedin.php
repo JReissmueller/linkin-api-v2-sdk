@@ -1,7 +1,7 @@
 <?php
 namespace JReissmueller\LinkedIn;
 
-require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'linkedin_response.php';
+require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'linkedin_api_response.php';
 
 class LinkedIn
 {
@@ -34,7 +34,7 @@ class LinkedIn
      *
      * @var array $accessToken
      */
-    private $accessToken = ['access_token' => '', 'expires_in' => ''];
+    private $accessToken;
     /**
      * The data sent with the last request served by this API
      *
@@ -60,6 +60,7 @@ class LinkedIn
         $this->apiKey = $apiKey;
         $this->apiSecret = $apiSecret;
         $this->redirectUri = $redirectUri;
+        $this->accessToken = (object)['access_token' => '', 'expires_in' => ''];
     }
 
     /**
@@ -68,11 +69,12 @@ class LinkedIn
      * @param string $action The api endpoint for the request
      * @param array $data The data to send with the request
      * @param string $method The data transfer method to use
+     * @param string $overrideUrl The base url to use for the request
      * @return stdClass The data returned by the request
      */
-    private function makeRequest($action, $data, $method, $override_url = null)
+    private function makeRequest($action, array $data, $method, $overrideUrl = null)
     {
-        $url = ($override_url ? $override_url : $this->apiUrl) . '/' . $action;
+        $url = ($overrideUrl ? $overrideUrl : $this->apiUrl) . '/' . $action;
         $ch = curl_init();
 
         switch (strtoupper($method)) {
@@ -90,13 +92,14 @@ class LinkedIn
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_HEADER, 1);
+        curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_URL, $url);
 
         $headers = [
-            'Authorization: Bearer ' . $this->accessToken['access_token'],
+            'Authorization: Bearer ' . $this->accessToken->access_token,
             'Cache-Control: no-cache',
-            'X-RestLi-Protocol-Version:2.0.0',
+            'X-RestLi-Protocol-Version: 2.0.0',
+            'x-li-format: json',
             'Content-Type: application/json'
         ];
 
@@ -108,9 +111,10 @@ class LinkedIn
             $result = json_encode((object)['error' => 'curl_error', 'error_description' => curl_error($ch)]);
         }
         curl_close($ch);
+        print_r($result);
 
         // Return request response
-        return new LinkedInResponse($result);
+        return new LinkedInAPIResponse($result);
     }
 
     /**
@@ -121,7 +125,7 @@ class LinkedIn
      */
     public function getAccessToken($code = null)
     {
-        if (!empty($this->accessToken['access_token'])) {
+        if (!empty($this->accessToken->access_token)) {
             return $this->accessToken;
         }
 
@@ -182,6 +186,7 @@ class LinkedIn
         return $this->oauthUrl . '/authorization?' . http_build_query($requestData);
     }
 
+
     /**
      * Makes a post request to the api
      *
@@ -189,7 +194,7 @@ class LinkedIn
      * @param array $data The data to send with the request
      * @return string The access token
      */
-    public function post($action, $data = [])
+    public function post($action, array $data = [])
     {
         return $this->makeRequest($action, $data, 'POST');
     }
@@ -201,8 +206,29 @@ class LinkedIn
      * @param array $data The data to send with the request
      * @return string The access token
      */
-    public function get($action, $data = [])
+    public function get($action, array $data = [])
     {
         return $this->makeRequest($action, $data, 'GET');
+    }
+
+    /**
+     * Posts a share to LinkedIn using the previously authorized user profile
+     *
+     * @param array $data An array of data describing the post on LinkedIn including
+     *  - content: A collection of fields describing the shared content.
+ 	 *  - - title: The title of the content being shared.
+ 	 *  - - description	The description of the content being shared.	256
+ 	 *  - - submitted-url: A fully qualified URL for the content being shared.
+ 	 *  - - submitted-image-url: A fully qualified URL to a thumbnail image to accompany the shared content.
+     *  - comment: A comment by the member to associated with the share.
+     *      If none of the above content parameters are provided, the comment must contain a URL to the content you want
+     *      to share.  If the comment contains multiple URLs, only the first one will be analyzed for content to share.
+     *  - visibility: A collection of visibility information about the share.
+     *  - - code One of the following values:
+     *      anyone:  Share will be visible to all members.
+     *      connections-only:  Share will only be visible to connections of the member performing the share.
+     */
+    public function share(array $data) {
+        return $this->post('people/~/shares', $data);
     }
 }

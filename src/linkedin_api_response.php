@@ -1,13 +1,12 @@
 <?php
 namespace JReissmueller\LinkedIn;
 
-class LinkedInResponse
+class LinkedInAPIResponse
 {
     private $status;
     private $raw;
     private $response;
     private $errors;
-    private $headers;
 
     /**
      * LinkedInResponse constructor.
@@ -16,18 +15,11 @@ class LinkedInResponse
      */
     public function __construct($apiResponse)
     {
-        $responseData = explode("\n", $apiResponse);
-        var_dump($responseData);
-        $this->raw = $responseData[count($responseData) - 1];
-        $this->headers = array_slice($responseData, -1);
-        $response = json_decode($this->raw);
-        if (!isset($response->error)) {
-            $this->status = 200;
-            $this->response = $response;
-        } else {
-            $this->errors = isset($response->error_description) ? $response->error_description : 'Unknown Error';
-            $this->response = $response;
-            $this->status = 403;
+        $this->raw = $apiResponse;
+        $this->response =  json_decode($apiResponse);
+        $this->status = isset($this->response->status) ? $this->response->status : 400;
+        if (isset($this->response->errorCode)) {
+            $this->errors = isset($this->response->message) ? $this->response->message : 'Unknown Error';
         }
     }
 
@@ -69,15 +61,5 @@ class LinkedInResponse
     public function errors()
     {
         return $this->errors;
-    }
-
-    /**
-     * Get the headers returned with this response
-     *
-     * @return string The headers returned with this response
-     */
-    public function headers()
-    {
-        return $this->headers;
     }
 }
