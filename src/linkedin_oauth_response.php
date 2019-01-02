@@ -1,7 +1,7 @@
 <?php
 namespace JReissmueller\LinkedIn;
 
-class LinkedInAPIResponse
+class LinkedInOAuthResponse
 {
     private $status;
     private $raw;
@@ -17,9 +17,11 @@ class LinkedInAPIResponse
     {
         $this->raw = $apiResponse;
         $this->response =  json_decode($apiResponse);
-        $this->status = isset($this->response->status) ? $this->response->status : 200;
-        if (isset($this->response->errorCode)) {
-            $this->errors = isset($this->response->message) ? $this->response->message : 'Unknown Error';
+        $this->status = isset($this->response->error) ? 400 : 200;
+        if (isset($this->response->error)) {
+            $this->errors = isset($this->response->error_description)
+                ? $this->response->error_description
+                : 'Unknown Error';
         }
     }
 

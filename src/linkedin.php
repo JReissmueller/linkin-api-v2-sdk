@@ -2,6 +2,7 @@
 namespace JReissmueller\LinkedIn;
 
 require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'linkedin_api_response.php';
+require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'linkedin_oauth_response.php';
 
 class LinkedIn
 {
@@ -69,12 +70,12 @@ class LinkedIn
      * @param string $action The api endpoint for the request
      * @param array $data The data to send with the request
      * @param string $method The data transfer method to use
-     * @param string $overrideUrl The base url to use for the request
+     * @param string $oauthRequest True to send the request to the oauth endpoint, false otherwise
      * @return stdClass The data returned by the request
      */
-    private function makeRequest($action, array $data, $method, $overrideUrl = null)
+    private function makeRequest($action, array $data, $method, $oauthRequest = false)
     {
-        $url = ($overrideUrl ? $overrideUrl : $this->apiUrl) . '/' . $action;
+        $url = ($oauthRequest ? $this->oauthUrl : $this->apiUrl) . '/' . $action;
         $ch = curl_init();
 
         switch (strtoupper($method)) {
@@ -111,10 +112,9 @@ class LinkedIn
             $result = json_encode((object)['error' => 'curl_error', 'error_description' => curl_error($ch)]);
         }
         curl_close($ch);
-        print_r($result);
 
         // Return request response
-        return new LinkedInAPIResponse($result);
+        return $oauthRequest ? new LinkedInOAuthResponse($result) : new LinkedInAPIResponse($result);
     }
 
     /**
@@ -137,7 +137,7 @@ class LinkedIn
             'client_secret' => $this->apiSecret
         ];
 
-        $tokenReponse = $this->makeRequest('accessToken', $requestData, 'GET', $this->oauthUrl);
+        $tokenReponse = $this->makeRequest('accessToken', $requestData, 'GET', true);
 
         if ($tokenReponse->status() == 200) {
             $this->accessToken = $tokenReponse->response();
